@@ -978,9 +978,8 @@ async function fetchData() {
       fetch('/api/data' + (device ? '?device=' + device : '')),
       fetch('/api/stats'),
     ]);
-    const data  = await dr.json();
-    const statsRaw = await sr.json();
-    const stats = Array.isArray(statsRaw) ? statsRaw : [];
+    const data = await dr.json();
+    const stats = await sr.json();
     renderTable(data);
     renderStats(data, stats);
     renderCharts(data);
@@ -1012,14 +1011,15 @@ function renderTable(data) {
 }
 
 function renderStats(data, stats) {
-  document.getElementById('statTotal').textContent   = data.length;
-  document.getElementById('statDevices').textContent = new Set(data.map(r => r.device_id)).size;
-  if (stats.length) {
-    const t = (stats.reduce((s,d) => s + (d.avg_temp || 0), 0) / stats.length).toFixed(1);
-    const h = (stats.reduce((s,d) => s + (d.avg_humidity || 0), 0) / stats.length).toFixed(1);
-    document.getElementById('statAvgTemp').textContent = t + ' °C';
-    document.getElementById('statAvgHum').textContent  = h + ' %';
+  if (!stats || stats.error) {
+    document.getElementById('statTotal').textContent   = data.length;
+    document.getElementById('statDevices').textContent = new Set(data.map(r => r.device_id)).size;
+    return;
   }
+  document.getElementById('statTotal').textContent   = stats.count ?? data.length;
+  document.getElementById('statDevices').textContent = stats.devices ?? new Set(data.map(r => r.device_id)).size;
+  document.getElementById('statAvgTemp').textContent = (stats.avg_temp ?? 0).toFixed(1) + ' °C';
+  document.getElementById('statAvgHum').textContent  = (stats.avg_humidity ?? 0).toFixed(1) + ' %';
 }
 
 function renderCharts(data) {

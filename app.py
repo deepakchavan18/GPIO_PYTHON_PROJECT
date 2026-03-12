@@ -230,30 +230,27 @@ def get_data():
 @app.route("/api/stats")
 @login_required
 def get_stats():
-    """Return aggregate stats per device for the chart."""
+    """Return global aggregate stats for the dashboard cards."""
     try:
         db  = get_connection()
         cur = db.cursor()
         cur.execute("""
-            SELECT device_id,
-                   ROUND(AVG(temperature), 2),
-                   ROUND(MIN(temperature), 2),
-                   ROUND(MAX(temperature), 2),
-                   ROUND(AVG(humidity), 2),
-                   COUNT(*)
+            SELECT
+                COALESCE(AVG(temperature), 0),
+                COALESCE(AVG(humidity), 0),
+                COUNT(*),
+                COUNT(DISTINCT device_id)
             FROM readings
-            GROUP BY device_id
         """)
-        rows = cur.fetchall()
+        avg_temp, avg_hum, total, devices = cur.fetchone()
         cur.close(); db.close()
-        return jsonify([{
-            "device":       r[0],
-            "avg_temp":     r[1],
-            "min_temp":     r[2],
-            "max_temp":     r[3],
-            "avg_humidity": r[4],
-            "count":        r[5],
-        } for r in rows])
+
+        return jsonify({
+            "avg_temp":     round(float(avg_temp), 2) if avg_temp is not None else 0,
+            "avg_humidity": round(float(avg_hum), 2) if avg_hum is not None else 0,
+            "count":        int(total),
+            "devices":      int(devices),
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
