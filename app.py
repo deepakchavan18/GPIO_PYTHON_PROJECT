@@ -272,7 +272,10 @@ def start_simulator():
             status = "started"
 
     # Broadcast new status to all connected dashboards
-    socketio.emit("sim_status", {"running": _get_sim_running()}, broadcast=True)
+    # Newer versions of python-socketio/flask-socketio don't accept a `broadcast`
+    # kwarg on `Server.emit`; calling `socketio.emit` without a room/recipient
+    # already broadcasts to all clients.
+    socketio.emit("sim_status", {"running": _get_sim_running()})
     return jsonify({"status": status})
 
 
@@ -286,7 +289,7 @@ def stop_simulator():
             _sim_thread = None
 
     # Broadcast new status to all connected dashboards
-    socketio.emit("sim_status", {"running": _get_sim_running()}, broadcast=True)
+    socketio.emit("sim_status", {"running": _get_sim_running()})
     return jsonify({"status": "stopped"})
 
 
