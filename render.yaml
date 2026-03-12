@@ -6,7 +6,7 @@ services:
     name: gpio-monitor
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --worker-class eventlet --workers 1 --timeout 120
     envVars:
       - key: FLASK_ENV
         value: production
@@ -19,7 +19,7 @@ services:
       - key: DB_HOST
         sync: false                # Paste your Railway/PlanetScale host
       - key: DB_PORT
-        value: "3306"
+        value: "5432"
       - key: DB_USER
         sync: false
       - key: DB_PASSWORD

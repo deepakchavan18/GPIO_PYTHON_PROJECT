@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -268,6 +269,14 @@
       margin: 0 auto;
     }
 
+    @media(max-width: 720px) {
+      nav { padding: 0 16px; }
+      main { padding: 18px 16px 24px; }
+      .nav-center { display: none; }
+      .nav-right { gap: 6px; }
+      .live-pill { display: none; }
+    }
+
     /* Page Header */
     .page-head {
       display: flex; align-items: flex-start; justify-content: space-between;
@@ -341,6 +350,7 @@
       cursor: pointer;
       transition: all .18s;
       box-shadow: var(--shadow-sm);
+      z-index: 1000;
     }
     .drop-btn:hover { border-color: var(--teal); color: var(--teal); box-shadow: 0 0 0 3px var(--teal-glow); }
     .drop-menu {
@@ -591,6 +601,55 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--muted2); }
+
+    /* Logs modal */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 1500;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: 100%; max-width: 880px; max-height: 80vh;
+      background: var(--surface);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; flex-wrap: wrap;
+    }
+    .modal-title { font-size: .95rem; font-weight: 600; color: var(--text); }
+    .modal-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .modal-body {
+      padding: 10px 16px 14px;
+      background: var(--surface2);
+      flex: 1;
+      overflow: auto;
+      font-family: 'Geist Mono', monospace;
+      font-size: .78rem;
+      white-space: pre-wrap;
+    }
+    .modal-close {
+      border: none; background: transparent; cursor: pointer;
+      font-size: 1.1rem; color: var(--muted);
+    }
+    .log-search {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: .82rem;
+      min-width: 180px;
+    }
   </style>
 </head>
 
@@ -677,6 +736,13 @@
           </a>
         </div>
       </div>
+
+      <button class="drop-btn" style="gap:6px" onclick="openLogModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h5M8 16h3"/>
+        </svg>
+        Logs
+      </button>
     </div>
   </div>
 
@@ -781,6 +847,23 @@
 
 </main>
 
+<!-- Logs modal -->
+<div class="modal-backdrop" id="logModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Simulator Logs</div>
+      <div class="modal-actions">
+        <input id="logSearch" class="log-search" type="search" placeholder="Search logs..." oninput="debouncedLoadLogs()" />
+        <a href="/api/logs/download" class="btn btn-outline" style="font-size:.8rem;">Download</a>
+        <button class="modal-close" onclick="closeLogModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="logContent">
+      Loading logs…
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Theme Engine ──────────────────────────────────────────────────────────────
 const html      = document.documentElement;
@@ -804,11 +887,18 @@ function handleThemeToggle(cb) {
 applyTheme(localStorage.getItem(THEME_KEY) || 'light');
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let simRunning = {{ 'true' if sim_running else 'false' }};
+let simRunning = JSON.parse('{{ "true" if sim_running else "false" }}');
 let refreshInterval = null;
 let tempChart, humChart;
 
 const DEVICE_CLASS = { device_1:'d1', device_2:'d2', device_3:'d3' };
+
+// ── Socket.IO: sync simulator state across users ──────────────────────────────
+const socket = io();
+socket.on('sim_status', payload => {
+  simRunning = !!payload.running;
+  updateSimUI();
+});
 
 // ── Chart helpers ─────────────────────────────────────────────────────────────
 function css(v) { return getComputedStyle(html).getPropertyValue(v).trim(); }
@@ -889,7 +979,8 @@ async function fetchData() {
       fetch('/api/stats'),
     ]);
     const data  = await dr.json();
-    const stats = await sr.json();
+    const statsRaw = await sr.json();
+    const stats = Array.isArray(statsRaw) ? statsRaw : [];
     renderTable(data);
     renderStats(data, stats);
     renderCharts(data);
@@ -978,6 +1069,39 @@ function toggleDropMenu() { document.getElementById('dropMenu').classList.toggle
 document.addEventListener('click', e => {
   if (!e.target.closest('.drop-wrap')) document.getElementById('dropMenu').classList.remove('open');
 });
+
+// ── Logs modal & loader ───────────────────────────────────────────────────────
+let logSearchTimeout = null;
+
+function openLogModal() {
+  document.getElementById('logModal').classList.add('open');
+  document.getElementById('logSearch').value = '';
+  loadLogs();
+}
+
+function closeLogModal() {
+  document.getElementById('logModal').classList.remove('open');
+}
+
+function debouncedLoadLogs() {
+  clearTimeout(logSearchTimeout);
+  logSearchTimeout = setTimeout(loadLogs, 300);
+}
+
+async function loadLogs() {
+  const q = document.getElementById('logSearch').value.trim();
+  const box = document.getElementById('logContent');
+  box.textContent = 'Loading logs…';
+  try {
+    const res = await fetch('/api/logs' + (q ? ('?q=' + encodeURIComponent(q)) : ''));
+    const json = await res.json();
+    const lines = json.lines || [];
+    box.textContent = lines.length ? lines.join('') : 'No log entries found.';
+  } catch (e) {
+    console.error(e);
+    box.textContent = 'Failed to load logs.';
+  }
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 updateSimUI();

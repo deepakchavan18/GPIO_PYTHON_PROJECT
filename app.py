@@ -1,22 +1,25 @@
 import io
 import json
+import os
 import threading
 
 import pandas as pd
 from authlib.integrations.flask_client import OAuth
 from flask import (Flask, jsonify, redirect, render_template,
-                   request, send_file, session, url_for)
+                   request, send_file, url_for)
 from flask_login import (LoginManager, current_user, login_required,
                          login_user, logout_user)
+from flask_socketio import SocketIO
 
 from config import Config
 from database import get_connection, init_db
 from models import User
 from simulator import SimulatorThread
 
-# ── App setup ─────────────────────────────────────────────────────────────────
+# ── App & Socket.IO setup ─────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Initialise database tables once at startup (idempotent)
 try:
@@ -265,10 +268,15 @@ def start_simulator():
     global _sim_thread
     with _sim_lock:
         if _get_sim_running():
-            return jsonify({"status": "already_running"})
-        _sim_thread = SimulatorThread()
-        _sim_thread.start()
-    return jsonify({"status": "started"})
+            status = "already_running"
+        else:
+            _sim_thread = SimulatorThread()
+            _sim_thread.start()
+            status = "started"
+
+    # Broadcast new status to all connected dashboards
+    socketio.emit("sim_status", {"running": _get_sim_running()}, broadcast=True)
+    return jsonify({"status": status})
 
 
 @app.route("/api/simulator/stop", methods=["POST"])
@@ -279,6 +287,9 @@ def stop_simulator():
         if _sim_thread and _sim_thread.is_alive():
             _sim_thread.stop()
             _sim_thread = None
+
+    # Broadcast new status to all connected dashboards
+    socketio.emit("sim_status", {"running": _get_sim_running()}, broadcast=True)
     return jsonify({"status": "stopped"})
 
 
@@ -289,7 +300,7 @@ def simulator_status():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Download
+#  Download sensor data
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/download/<fmt>")
@@ -339,9 +350,49 @@ def download_data(fmt):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  Logs: view & download
+# ═══════════════════════════════════════════════════════════════════════════════
+
+LOG_PATH = "sensor.log"
+
+
+@app.route("/api/logs")
+@login_required
+def get_logs():
+    """Return recent log lines with optional search."""
+    if not os.path.exists(LOG_PATH):
+        return jsonify({"lines": []})
+
+    query = request.args.get("q", "").lower()
+    try:
+        limit = min(int(request.args.get("limit", "500")), 2000)
+    except ValueError:
+        limit = 500
+
+    with open(LOG_PATH, "r") as f:
+        lines = f.readlines()
+
+    lines = lines[-limit:]
+    if query:
+        lines = [ln for ln in lines if query in ln.lower()]
+
+    return jsonify({"lines": lines})
+
+
+@app.route("/api/logs/download")
+@login_required
+def download_logs():
+    """Download the raw sensor log file."""
+    if not os.path.exists(LOG_PATH):
+        return jsonify({"error": "No log file found."}), 404
+    return send_file(LOG_PATH, mimetype="text/plain",
+                     as_attachment=True, download_name="sensor.log")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Entry point
 # ═══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     init_db()
-    app.run(debug=(Config.FLASK_ENV == "development"), port=5001)
+    socketio.run(app, debug=(Config.FLASK_ENV == "development"), port=5001)
