@@ -110,7 +110,7 @@ def test_simulator_sensor_returns_valid_range():
  
 def test_config_defaults():
     from config import Config
-    assert Config.DB_PORT == 3306
+    assert Config.DB_PORT == 5432
     assert Config.MAX_READINGS > 0
     assert Config.SIMULATOR_DELAY > 0
 
