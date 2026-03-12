@@ -67,11 +67,11 @@ class User(UserMixin):
 
         cur.execute(
             "INSERT INTO users (google_id, email, name, picture, role) "
-            "VALUES (%s, %s, %s, %s, %s)",
-            (google_id, email, name, picture, role)
+            "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (google_id, email, name, picture, role),
         )
+        user_id = cur.fetchone()[0]
         db.commit()
-        user_id = cur.lastrowid
         cur.close(); db.close()
         return User(user_id, google_id, email, name, picture, role, True)
 
