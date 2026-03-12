@@ -18,6 +18,14 @@ from simulator import SimulatorThread
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
 
+# Initialise database tables once at startup (idempotent)
+try:
+    init_db()
+except Exception as e:
+    import sys, traceback
+    print(f"[DB] init_db failed at startup: {e}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+
 # ── Flask-Login ───────────────────────────────────────────────────────────────
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -27,18 +35,6 @@ login_manager.login_message_category = "info"
 @login_manager.user_loader
 def load_user(user_id):
     return User.get_by_id(user_id)
-
-
-@app.before_serving
-def ensure_tables_exist():
-    """Create database tables before the app starts serving (idempotent)."""
-    try:
-        init_db()
-    except Exception as e:
-        # Log to stderr; app will still try to serve the request.
-        import sys, traceback
-        print(f"[DB] init_db failed: {e}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
 
 # ── Google OAuth ──────────────────────────────────────────────────────────────
 oauth = OAuth(app)
