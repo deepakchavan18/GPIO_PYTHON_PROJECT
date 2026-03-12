@@ -66,22 +66,37 @@ def google_auth():
 
 @app.route("/auth/google/callback")
 def google_callback():
-    token    = google.authorize_access_token()
-    userinfo = token.get("userinfo")
+    """Handle Google OAuth callback and log any errors clearly."""
+    try:
+        token    = google.authorize_access_token()
+        userinfo = token.get("userinfo")
 
-    user = User.get_or_create(
-        google_id=userinfo["sub"],
-        email=userinfo["email"],
-        name=userinfo["name"],
-        picture=userinfo.get("picture", ""),
-    )
+        if not userinfo:
+            raise RuntimeError("Google response missing userinfo; check OAuth scopes/config.")
 
-    if not user or not user.is_active:
-        return render_template("login.html",
-                               error="Your account has been disabled. Contact an admin.")
+        user = User.get_or_create(
+            google_id=userinfo["sub"],
+            email=userinfo["email"],
+            name=userinfo["name"],
+            picture=userinfo.get("picture", ""),
+        )
 
-    login_user(user, remember=True)
-    return redirect(url_for("dashboard"))
+        if not user or not user.is_active:
+            return render_template(
+                "login.html",
+                error="Your account has been disabled. Contact an admin.",
+            )
+
+        login_user(user, remember=True)
+        return redirect(url_for("dashboard"))
+
+    except Exception as e:
+        import traceback, sys
+        traceback.print_exc(file=sys.stderr)
+        return render_template(
+            "login.html",
+            error=f"Sign-in failed: {e}",
+        ), 500
 
 
 @app.route("/logout")
