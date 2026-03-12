@@ -360,7 +360,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       min-width: 190px;
-      z-index: 200;
+      z-index: 1400;
       box-shadow: var(--shadow-lg);
       overflow: hidden;
     }
@@ -743,6 +743,13 @@
         </svg>
         Logs
       </button>
+
+      <a href="/api/logs/download" class="drop-btn" style="gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><rect x="4" y="17" width="16" height="3" rx="1"/>
+        </svg>
+        Download Logs
+      </a>
     </div>
   </div>
 
@@ -1011,15 +1018,41 @@ function renderTable(data) {
 }
 
 function renderStats(data, stats) {
-  if (!stats || stats.error) {
-    document.getElementById('statTotal').textContent   = data.length;
-    document.getElementById('statDevices').textContent = new Set(data.map(r => r.device_id)).size;
+  const countEl   = document.getElementById('statTotal');
+  const devicesEl = document.getElementById('statDevices');
+  const avgTEl    = document.getElementById('statAvgTemp');
+  const avgHEl    = document.getElementById('statAvgHum');
+
+  const count   = data.length;
+  const devices = new Set(data.map(r => r.device_id)).size;
+
+  // Prefer backend aggregates when available (covers all rows, not just the latest slice)
+  if (stats && !stats.error) {
+    countEl.textContent   = stats.count   ?? count;
+    devicesEl.textContent = stats.devices ?? devices;
+    avgTEl.textContent    = (stats.avg_temp ?? 0).toFixed(1)      + ' °C';
+    avgHEl.textContent    = (stats.avg_humidity ?? 0).toFixed(1)  + ' %';
     return;
   }
-  document.getElementById('statTotal').textContent   = stats.count ?? data.length;
-  document.getElementById('statDevices').textContent = stats.devices ?? new Set(data.map(r => r.device_id)).size;
-  document.getElementById('statAvgTemp').textContent = (stats.avg_temp ?? 0).toFixed(1) + ' °C';
-  document.getElementById('statAvgHum').textContent  = (stats.avg_humidity ?? 0).toFixed(1) + ' %';
+
+  // Fallback: compute averages from the data we already have
+  let avgTemp = 0;
+  let avgHum  = 0;
+  if (count) {
+    let sumT = 0;
+    let sumH = 0;
+    data.forEach(r => {
+      sumT += Number(r.temperature) || 0;
+      sumH += Number(r.humidity)    || 0;
+    });
+    avgTemp = sumT / count;
+    avgHum  = sumH  / count;
+  }
+
+  countEl.textContent   = count;
+  devicesEl.textContent = devices;
+  avgTEl.textContent    = count ? avgTemp.toFixed(1) + ' °C' : '—';
+  avgHEl.textContent    = count ? avgHum.toFixed(1)  + ' %' : '—';
 }
 
 function renderCharts(data) {
