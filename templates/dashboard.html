@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPIO Monitor — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ══════════════════════════════════════════════════
+       THEME TOKENS
+    ══════════════════════════════════════════════════ */
+    :root {
+      --transition-theme: background .25s ease, color .25s ease,
+                          border-color .25s ease, box-shadow .25s ease;
+    }
+
+    [data-theme="light"] {
+      --bg:          #f5f6fa;
+      --bg2:         #eef0f6;
+      --surface:     #ffffff;
+      --surface2:    #f8f9fc;
+      --border:      #e4e7f0;
+      --border2:     #d0d5e8;
+      --text:        #0f1520;
+      --text2:       #3d4663;
+      --muted:       #8892aa;
+      --muted2:      #b0b8cc;
+
+      --teal:        #0099a8;
+      --teal-light:  #e0f7fa;
+      --teal-glow:   rgba(0,153,168,.15);
+      --blue:        #2563eb;
+      --blue-light:  #eff6ff;
+      --amber:       #d97706;
+      --amber-light: #fffbeb;
+      --rose:        #e11d48;
+      --rose-light:  #fff1f2;
+      --green:       #059669;
+      --green-light: #ecfdf5;
+
+      --shadow-sm:   0 1px 3px rgba(15,21,32,.06), 0 1px 2px rgba(15,21,32,.04);
+      --shadow-md:   0 4px 16px rgba(15,21,32,.08), 0 2px 6px rgba(15,21,32,.04);
+      --shadow-lg:   0 12px 40px rgba(15,21,32,.10), 0 4px 12px rgba(15,21,32,.05);
+
+      --chart-grid:  rgba(0,0,0,.06);
+      --chart-tick:  #8892aa;
+    }
+
+    [data-theme="dark"] {
+      --bg:          #080d1a;
+      --bg2:         #0c1226;
+      --surface:     #111827;
+      --surface2:    #161f30;
+      --border:      #1e2d45;
+      --border2:     #263550;
+      --text:        #e8edf8;
+      --text2:       #94a3c4;
+      --muted:       #4a5a7a;
+      --muted2:      #3a4a68;
+
+      --teal:        #00c8d8;
+      --teal-light:  rgba(0,200,216,.1);
+      --teal-glow:   rgba(0,200,216,.2);
+      --blue:        #60a5fa;
+      --blue-light:  rgba(96,165,250,.1);
+      --amber:       #fbbf24;
+      --amber-light: rgba(251,191,36,.1);
+      --rose:        #fb7185;
+      --rose-light:  rgba(251,113,133,.1);
+      --green:       #34d399;
+      --green-light: rgba(52,211,153,.1);
+
+      --shadow-sm:   0 1px 3px rgba(0,0,0,.3);
+      --shadow-md:   0 4px 16px rgba(0,0,0,.4);
+      --shadow-lg:   0 12px 40px rgba(0,0,0,.5);
+
+      --chart-grid:  rgba(255,255,255,.04);
+      --chart-tick:  #4a5a7a;
+    }
+
+    /* ══════════════════════════════════════════════════
+       BASE
+    ══════════════════════════════════════════════════ */
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      transition: var(--transition-theme);
+    }
+
+    /* ══════════════════════════════════════════════════
+       NAV
+    ══════════════════════════════════════════════════ */
+    nav {
+      height: 62px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition-theme);
+    }
+
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.15rem; font-weight: 700;
+      letter-spacing: -.4px; color: var(--text);
+      text-decoration: none;
+    }
+    .brand-chip {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--teal), #0077b6);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      box-shadow: 0 2px 8px var(--teal-glow);
+    }
+    .brand-accent { color: var(--teal); }
+
+    .nav-center {
+      display: flex; align-items: center; gap: 4px;
+    }
+    .nav-tab {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: .88rem; font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all .15s;
+      border: none; background: transparent;
+      font-family: 'Outfit', sans-serif;
+    }
+    .nav-tab:hover { color: var(--text); background: var(--surface2); }
+    .nav-tab.active { color: var(--teal); background: var(--teal-light); }
+
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+
+    /* Live indicator pill */
+    .live-pill {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      font-size: .8rem; font-weight: 500;
+      color: var(--muted);
+      font-family: 'Geist Mono', monospace;
+      transition: var(--transition-theme);
+    }
+    .live-pill.active {
+      background: var(--green-light);
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted2);
+      transition: background .3s;
+    }
+    .live-pill.active .live-dot {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* ── Theme Toggle Switch ── */
+    .theme-toggle {
+      position: relative;
+      width: 68px; height: 34px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .theme-toggle input { display: none; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 34px;
+      transition: all .35s cubic-bezier(.34,1.56,.64,1);
+      overflow: hidden;
+    }
+    .theme-toggle:hover .toggle-track {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-glow);
+    }
+    .toggle-icons {
+      position: absolute; inset: 0;
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      pointer-events: none;
+      font-size: 12px;
+      z-index: 1;
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 4px; left: 4px;
+      width: 24px; height: 24px;
+      background: var(--surface);
+      border-radius: 50%;
+      box-shadow: var(--shadow-sm);
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1), background .25s;
+      z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+    }
+    [data-theme="dark"] .toggle-thumb {
+      transform: translateX(34px);
+    }
+
+    /* User chip */
+    .user-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 12px 5px 5px;
+      border-radius: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      font-size: .88rem; font-weight: 500;
+      transition: all .15s;
+    }
+    .user-chip:hover { border-color: var(--border2); color: var(--text); }
+    .user-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 1.5px solid var(--border2);
+      object-fit: cover;
+    }
+    .role-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 4px var(--teal);
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-size: .88rem; font-weight: 500;
+      cursor: pointer; border: none;
+      transition: all .18s ease;
+      text-decoration: none;
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text2);
+    }
+    .btn-outline:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+
+    /* ══════════════════════════════════════════════════
+       MAIN LAYOUT
+    ══════════════════════════════════════════════════ */
+    main {
+      padding: 28px 32px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* Page Header */
+    .page-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+      margin-bottom: 28px;
+      animation: fadeUp .5s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity:0; transform: translateY(14px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    .page-title-group h1 {
+      font-size: 1.65rem; font-weight: 700;
+      letter-spacing: -.5px; color: var(--text);
+      margin-bottom: 4px;
+    }
+    .page-title-group p { font-size: .9rem; color: var(--muted); }
+    .breadcrumb {
+      display: flex; align-items: center; gap: 6px;
+      font-size: .78rem; color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .breadcrumb span { color: var(--teal); font-weight: 500; }
+
+    .action-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    /* Simulator button */
+    .sim-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-family: 'Outfit', sans-serif;
+      font-size: .92rem; font-weight: 600;
+      cursor: pointer; border: none;
+      transition: all .22s cubic-bezier(.16,1,.3,1);
+      position: relative; overflow: hidden;
+    }
+    .sim-btn::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.15), transparent);
+      opacity: 0; transition: opacity .2s;
+    }
+    .sim-btn:hover::before { opacity: 1; }
+    .sim-btn.start {
+      background: linear-gradient(135deg, var(--teal), #006d8e);
+      color: #fff;
+      box-shadow: 0 4px 14px var(--teal-glow);
+    }
+    .sim-btn.start:hover { transform: translateY(-1px); box-shadow: 0 6px 20px var(--teal-glow); }
+    .sim-btn.stop {
+      background: var(--rose-light);
+      border: 1.5px solid var(--rose);
+      color: var(--rose);
+    }
+    .sim-btn.stop:hover { background: rgba(225,29,72,.15); transform: translateY(-1px); }
+    .sim-btn:disabled { opacity: .6; cursor: not-allowed; transform: none !important; }
+
+    /* Download dropdown */
+    .drop-wrap { position: relative; }
+    .drop-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      font-family: 'Outfit', sans-serif;
+      font-size: .9rem; font-weight: 500;
+      cursor: pointer;
+      transition: all .18s;
+      box-shadow: var(--shadow-sm);
+    }
+    .drop-btn:hover { border-color: var(--teal); color: var(--teal); box-shadow: 0 0 0 3px var(--teal-glow); }
+    .drop-menu {
+      display: none;
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      min-width: 190px;
+      z-index: 200;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+    .drop-menu.open { display: block; animation: menuIn .15s ease; }
+    @keyframes menuIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+    .drop-menu-label {
+      padding: 9px 14px 5px;
+      font-size: .72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted);
+    }
+    .drop-menu a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      color: var(--text2); text-decoration: none;
+      font-size: .88rem; transition: all .12s;
+    }
+    .drop-menu a:hover { background: var(--surface2); color: var(--text); }
+    .dm-icon {
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .dm-icon.j { background: var(--amber-light); }
+    .dm-icon.c { background: var(--green-light); }
+    .dm-icon.x { background: var(--blue-light);  }
+    .drop-menu .sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* ══════════════════════════════════════════════════
+       STAT CARDS
+    ══════════════════════════════════════════════════ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media(max-width:1000px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:560px){  .stats-grid{ grid-template-columns:1fr; } }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 24px;
+      position: relative; overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition-theme), transform .2s, box-shadow .2s;
+      animation: fadeUp .5s ease both;
+    }
+    .stat-card:nth-child(1){ animation-delay:.05s }
+    .stat-card:nth-child(2){ animation-delay:.10s }
+    .stat-card:nth-child(3){ animation-delay:.15s }
+    .stat-card:nth-child(4){ animation-delay:.20s }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+    /* Colored top stripe */
+    .stat-card::after {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      border-radius: 16px 16px 0 0;
+    }
+    .stat-card.c-teal::after  { background: linear-gradient(90deg, var(--teal), #0077b6); }
+    .stat-card.c-blue::after  { background: linear-gradient(90deg, var(--blue), #818cf8); }
+    .stat-card.c-amber::after { background: linear-gradient(90deg, var(--amber), #f59e0b); }
+    .stat-card.c-rose::after  { background: linear-gradient(90deg, var(--rose), #f43f5e); }
+
+    /* Soft watermark icon */
+    .stat-card .watermark {
+      position: absolute; right: 16px; bottom: 10px;
+      font-size: 3.2rem; opacity: .06;
+      pointer-events: none; line-height: 1;
+      transition: opacity .25s;
+    }
+    .stat-card:hover .watermark { opacity: .1; }
+
+    .stat-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .stat-label {
+      font-size: .75rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted);
+    }
+    .stat-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+    }
+    .stat-icon.teal  { background: var(--teal-light);  }
+    .stat-icon.blue  { background: var(--blue-light);  }
+    .stat-icon.amber { background: var(--amber-light); }
+    .stat-icon.rose  { background: var(--rose-light);  }
+
+    .stat-value {
+      font-family: 'Geist Mono', monospace;
+      font-size: 2.1rem; font-weight: 500;
+      line-height: 1; margin-bottom: 5px;
+      color: var(--text);
+      transition: color .25s;
+    }
+    .stat-sub { font-size: .78rem; color: var(--muted); }
+
+    /* ══════════════════════════════════════════════════
+       CHARTS
+    ══════════════════════════════════════════════════ */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    @media(max-width:860px){ .charts-row{ grid-template-columns:1fr; } }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 24px;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition-theme);
+      animation: fadeUp .5s ease .25s both;
+    }
+    .chart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .chart-title { font-size: .92rem; font-weight: 600; color: var(--text2); }
+    .chart-badge {
+      font-size: .72rem; font-family: 'Geist Mono', monospace;
+      padding: 3px 9px; border-radius: 20px; font-weight: 500;
+    }
+    .badge-teal { background: var(--teal-light); color: var(--teal); }
+    .badge-blue { background: var(--blue-light); color: var(--blue); }
+    .chart-wrap { position: relative; height: 200px; }
+
+    /* ══════════════════════════════════════════════════
+       TABLE
+    ══════════════════════════════════════════════════ */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition-theme);
+      animation: fadeUp .5s ease .3s both;
+    }
+    .table-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px; flex-wrap: wrap;
+    }
+    .table-head-left { display: flex; align-items: center; gap: 10px; }
+    .table-title { font-size: .95rem; font-weight: 600; color: var(--text); }
+    .row-count {
+      font-family: 'Geist Mono', monospace;
+      font-size: .72rem;
+      padding: 2px 9px; border-radius: 20px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .filter-group { display: flex; align-items: center; gap: 8px; }
+    .filter-label { font-size: .82rem; color: var(--muted); white-space: nowrap; }
+    .filter-select {
+      padding: 7px 12px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text);
+      font-family: 'Outfit', sans-serif; font-size: .88rem;
+      cursor: pointer; transition: all .15s;
+    }
+    .filter-select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-glow); }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--surface2); }
+    th {
+      padding: 11px 18px; text-align: left;
+      font-size: .72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      white-space: nowrap; transition: var(--transition-theme);
+    }
+    td {
+      padding: 13px 18px; font-size: .9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text2); transition: background .12s, var(--transition-theme);
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+
+    .mono { font-family: 'Geist Mono', monospace; font-size: .82rem; }
+
+    .device-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: .78rem; font-weight: 600;
+      font-family: 'Geist Mono', monospace;
+    }
+    .d1 { background: var(--teal-light);  color: var(--teal);  border: 1px solid rgba(0,153,168,.2); }
+    .d2 { background: var(--blue-light);  color: var(--blue);  border: 1px solid rgba(37,99,235,.15); }
+    .d3 { background: var(--amber-light); color: var(--amber); border: 1px solid rgba(217,119,6,.2); }
+    .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+    .temp-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-family: 'Geist Mono', monospace; font-size: .85rem;
+      font-weight: 500; color: var(--text);
+    }
+    .hum-chip {
+      font-family: 'Geist Mono', monospace; font-size: .85rem;
+      font-weight: 500; color: var(--blue);
+    }
+    .ts-text {
+      font-family: 'Geist Mono', monospace;
+      font-size: .76rem; color: var(--muted);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 64px 24px;
+    }
+    .empty-icon {
+      width: 64px; height: 64px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; margin: 0 auto 16px;
+    }
+    .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .empty-state p  { font-size: .88rem; color: var(--muted); }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted2); }
+  </style>
+</head>
+
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <a class="nav-brand" href="#">
+    <div class="brand-chip">⚡</div>
+    GPIO<span class="brand-accent">Monitor</span>
+  </a>
+
+  <div class="nav-center">
+    <span class="nav-tab active">Dashboard</span>
+    {% if user.role == 'admin' %}
+    <a href="{{ url_for('admin_panel') }}" class="nav-tab">Admin Panel</a>
+    {% endif %}
+  </div>
+
+  <div class="nav-right">
+    <div class="live-pill" id="livePill">
+      <span class="live-dot"></span>
+      <span id="liveLabel">IDLE</span>
+    </div>
+
+    <!-- ── Theme Toggle ── -->
+    <label class="theme-toggle" title="Toggle light / dark">
+      <input type="checkbox" id="themeCheckbox" onchange="handleThemeToggle(this)">
+      <div class="toggle-track">
+        <div class="toggle-icons"><span>☀️</span><span>🌙</span></div>
+      </div>
+      <div class="toggle-thumb" id="themeThumb">☀️</div>
+    </label>
+
+    <div class="user-chip">
+      {% if user.picture %}
+        <img class="user-avatar" src="{{ user.picture }}" alt="{{ user.name }}">
+      {% else %}
+        <div style="width:26px;height:26px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border2);font-size:13px;">👤</div>
+      {% endif %}
+      <span>{{ user.name.split()[0] }}</span>
+      <span class="role-dot"></span>
+    </div>
+
+    <a href="{{ url_for('logout') }}" class="btn btn-outline">Sign out</a>
+  </div>
+</nav>
+
+<!-- ══ MAIN ══ -->
+<main>
+
+  <!-- Page Header -->
+  <div class="page-head">
+    <div class="page-title-group">
+      <div class="breadcrumb">Home <span>/</span> <span>Dashboard</span></div>
+      <h1>Sensor Dashboard</h1>
+      <p>Real-time temperature &amp; humidity monitoring across all IoT devices</p>
+    </div>
+
+    <div class="action-row">
+      <button id="simBtn" class="sim-btn start" onclick="toggleSimulator()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Start Monitoring
+      </button>
+
+      <div class="drop-wrap">
+        <button class="drop-btn" onclick="toggleDropMenu()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="drop-menu" id="dropMenu">
+          <div class="drop-menu-label">Choose format</div>
+          <a href="/api/download/json">
+            <span class="dm-icon j">📄</span> JSON
+          </a>
+          <div class="sep"></div>
+          <a href="/api/download/csv">
+            <span class="dm-icon c">📊</span> CSV
+          </a>
+          <div class="sep"></div>
+          <a href="/api/download/excel">
+            <span class="dm-icon x">📗</span> Excel (.xlsx)
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stats-grid">
+    <div class="stat-card c-teal">
+      <div class="watermark">📡</div>
+      <div class="stat-top">
+        <div class="stat-label">Total Readings</div>
+        <div class="stat-icon teal">📡</div>
+      </div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-sub">max 3,000 stored</div>
+    </div>
+    <div class="stat-card c-blue">
+      <div class="watermark">🌡️</div>
+      <div class="stat-top">
+        <div class="stat-label">Avg Temperature</div>
+        <div class="stat-icon blue">🌡️</div>
+      </div>
+      <div class="stat-value" id="statAvgTemp">—</div>
+      <div class="stat-sub">across all devices</div>
+    </div>
+    <div class="stat-card c-amber">
+      <div class="watermark">💧</div>
+      <div class="stat-top">
+        <div class="stat-label">Avg Humidity</div>
+        <div class="stat-icon amber">💧</div>
+      </div>
+      <div class="stat-value" id="statAvgHum">—</div>
+      <div class="stat-sub">across all devices</div>
+    </div>
+    <div class="stat-card c-rose">
+      <div class="watermark">🔌</div>
+      <div class="stat-top">
+        <div class="stat-label">Active Devices</div>
+        <div class="stat-icon rose">🔌</div>
+      </div>
+      <div class="stat-value" id="statDevices">—</div>
+      <div class="stat-sub">unique sensors online</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Temperature Trend (last 30 pts)</div>
+        <span class="chart-badge badge-teal">°C</span>
+      </div>
+      <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Humidity Trend (last 30 pts)</div>
+        <span class="chart-badge badge-blue">%RH</span>
+      </div>
+      <div class="chart-wrap"><canvas id="humChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-head">
+      <div class="table-head-left">
+        <div class="table-title">Latest Readings</div>
+        <span class="row-count" id="rowCount">0 rows</span>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Filter device:</span>
+        <select class="filter-select" id="deviceFilter" onchange="fetchData()">
+          <option value="">All Devices</option>
+          <option value="device_1">Device 1</option>
+          <option value="device_2">Device 2</option>
+          <option value="device_3">Device 3</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Device</th>
+            <th>Temperature</th>
+            <th>Humidity</th>
+            <th>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="5">
+            <div class="empty-state">
+              <div class="empty-icon">📡</div>
+              <h3>No data yet</h3>
+              <p>Click <strong>Start Monitoring</strong> to begin collecting sensor data</p>
+            </div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Theme Engine ──────────────────────────────────────────────────────────────
+const html      = document.documentElement;
+const THEME_KEY = 'gpio-theme';
+
+function applyTheme(theme) {
+  html.setAttribute('data-theme', theme);
+  const isDark = theme === 'dark';
+  document.getElementById('themeCheckbox').checked = isDark;
+  document.getElementById('themeThumb').textContent = isDark ? '🌙' : '☀️';
+  localStorage.setItem(THEME_KEY, theme);
+  // Delay chart refresh so CSS vars have updated
+  requestAnimationFrame(() => updateChartColors());
+}
+
+function handleThemeToggle(cb) {
+  applyTheme(cb.checked ? 'dark' : 'light');
+}
+
+// Restore saved theme
+applyTheme(localStorage.getItem(THEME_KEY) || 'light');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let simRunning = {{ 'true' if sim_running else 'false' }};
+let refreshInterval = null;
+let tempChart, humChart;
+
+const DEVICE_CLASS = { device_1:'d1', device_2:'d2', device_3:'d3' };
+
+// ── Chart helpers ─────────────────────────────────────────────────────────────
+function css(v) { return getComputedStyle(html).getPropertyValue(v).trim(); }
+
+function buildChartOptions(color) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: css('--surface'),
+        borderColor: color, borderWidth: 1,
+        titleColor: css('--text'), bodyColor: css('--text2'),
+        padding: 10, cornerRadius: 10, displayColors: false,
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: css('--chart-grid'), drawBorder: false },
+        ticks: { color: css('--chart-tick'), maxTicksLimit: 7, font:{ size:10, family:'Geist Mono' } }
+      },
+      y: {
+        grid: { color: css('--chart-grid'), drawBorder: false },
+        ticks: { color: css('--chart-tick'), font:{ size:10, family:'Geist Mono' } }
+      }
+    }
+  };
+}
+
+function makeChart(id, label, colorVar) {
+  const ctx   = document.getElementById(id).getContext('2d');
+  const color = css(colorVar);
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label, data: [],
+        borderColor: color,
+        backgroundColor: color + '20',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: color,
+        pointBorderColor: 'transparent',
+        pointHoverRadius: 5,
+        tension: 0.45,
+        fill: true,
+      }]
+    },
+    options: buildChartOptions(color)
+  });
+  chart._colorVar = colorVar;
+  return chart;
+}
+
+tempChart = makeChart('tempChart', 'Temperature (°C)', '--teal');
+humChart  = makeChart('humChart',  'Humidity (%)',      '--blue');
+
+function updateChartColors() {
+  if (!tempChart || !humChart) return;
+  [tempChart, humChart].forEach(c => {
+    const color = css(c._colorVar);
+    const ds = c.data.datasets[0];
+    ds.borderColor            = color;
+    ds.backgroundColor        = color + '20';
+    ds.pointBackgroundColor   = color;
+    c.options = buildChartOptions(color);
+    c.update('none');
+  });
+}
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+async function fetchData() {
+  const device = document.getElementById('deviceFilter').value;
+  try {
+    const [dr, sr] = await Promise.all([
+      fetch('/api/data' + (device ? '?device=' + device : '')),
+      fetch('/api/stats'),
+    ]);
+    const data  = await dr.json();
+    const stats = await sr.json();
+    renderTable(data);
+    renderStats(data, stats);
+    renderCharts(data);
+  } catch(e) { console.error(e); }
+}
+
+function renderTable(data) {
+  document.getElementById('rowCount').textContent = data.length + ' row' + (data.length !== 1 ? 's' : '');
+  const body = document.getElementById('tableBody');
+  if (!data.length) {
+    body.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+      <div class="empty-icon">📡</div>
+      <h3>No readings yet</h3>
+      <p>Start the simulator to collect data</p>
+    </div></td></tr>`;
+    return;
+  }
+  body.innerHTML = data.map(r => {
+    const dc    = DEVICE_CLASS[r.device_id] || 'd1';
+    const label = r.device_id.replace('_',' ').replace(/\b\w/g, c => c.toUpperCase());
+    return `<tr>
+      <td class="mono" style="color:var(--muted)">#${r.id}</td>
+      <td><span class="device-pill ${dc}"><span class="pill-dot"></span>${label}</span></td>
+      <td><span class="temp-chip">🌡 ${r.temperature} °C</span></td>
+      <td><span class="hum-chip">💧 ${r.humidity} %</span></td>
+      <td><span class="ts-text">${r.timestamp}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStats(data, stats) {
+  document.getElementById('statTotal').textContent   = data.length;
+  document.getElementById('statDevices').textContent = new Set(data.map(r => r.device_id)).size;
+  if (stats.length) {
+    const t = (stats.reduce((s,d) => s + (d.avg_temp || 0), 0) / stats.length).toFixed(1);
+    const h = (stats.reduce((s,d) => s + (d.avg_humidity || 0), 0) / stats.length).toFixed(1);
+    document.getElementById('statAvgTemp').textContent = t + ' °C';
+    document.getElementById('statAvgHum').textContent  = h + ' %';
+  }
+}
+
+function renderCharts(data) {
+  const pts    = [...data].reverse().slice(-30);
+  const labels = pts.map(r => r.timestamp.slice(11, 19));
+  tempChart.data.labels = labels;
+  tempChart.data.datasets[0].data = pts.map(r => r.temperature);
+  tempChart.update('none');
+  humChart.data.labels = labels;
+  humChart.data.datasets[0].data = pts.map(r => r.humidity);
+  humChart.update('none');
+}
+
+// ── Simulator ─────────────────────────────────────────────────────────────────
+async function toggleSimulator() {
+  const btn = document.getElementById('simBtn');
+  btn.disabled = true;
+  try {
+    const res  = await fetch(simRunning ? '/api/simulator/stop' : '/api/simulator/start', { method:'POST' });
+    const json = await res.json();
+    simRunning = json.status === 'started' || json.status === 'already_running';
+  } catch(e) { console.error(e); }
+  updateSimUI();
+  btn.disabled = false;
+}
+
+function updateSimUI() {
+  const btn  = document.getElementById('simBtn');
+  const pill = document.getElementById('livePill');
+  if (simRunning) {
+    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="4" height="12"/><rect x="14" y="6" width="4" height="12"/></svg> Stop Monitoring`;
+    btn.className = 'sim-btn stop';
+    pill.classList.add('active');
+    document.getElementById('liveLabel').textContent = 'LIVE';
+    if (!refreshInterval) refreshInterval = setInterval(fetchData, 5000);
+  } else {
+    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Start Monitoring`;
+    btn.className = 'sim-btn start';
+    pill.classList.remove('active');
+    document.getElementById('liveLabel').textContent = 'IDLE';
+    clearInterval(refreshInterval); refreshInterval = null;
+  }
+}
+
+// ── Dropdown ──────────────────────────────────────────────────────────────────
+function toggleDropMenu() { document.getElementById('dropMenu').classList.toggle('open'); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('.drop-wrap')) document.getElementById('dropMenu').classList.remove('open');
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateSimUI();
+fetchData();
+if (simRunning) refreshInterval = setInterval(fetchData, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# render.yaml — Deploy your Flask app on Render.com
+# Docs: https://render.com/docs/render-yaml-spec
+ 
+services:
+  - type: web
+    name: gpio-monitor
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true        # Render auto-generates a secure value
+      - key: GOOGLE_CLIENT_ID
+        sync: false                # You paste this in the Render dashboard
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: DB_HOST
+        sync: false                # Paste your Railway/PlanetScale host
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: MAX_READINGS
+        value: "3000"
+      - key: SIMULATOR_DELAY
+        value: "5"
+    healthCheckPath: /login
+ 

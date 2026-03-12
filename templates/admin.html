@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPIO Monitor — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --transition-theme: background .25s ease, color .25s ease,
+                          border-color .25s ease, box-shadow .25s ease;
+    }
+
+    [data-theme="light"] {
+      --bg:          #f5f6fa;
+      --surface:     #ffffff;
+      --surface2:    #f8f9fc;
+      --border:      #e4e7f0;
+      --border2:     #d0d5e8;
+      --text:        #0f1520;
+      --text2:       #3d4663;
+      --muted:       #8892aa;
+      --muted2:      #b0b8cc;
+
+      --teal:        #0099a8;
+      --teal-mid:    #0077b6;
+      --teal-light:  #e0f7fa;
+      --teal-glow:   rgba(0,153,168,.15);
+      --blue:        #2563eb;
+      --blue-light:  #eff6ff;
+      --amber:       #d97706;
+      --amber-light: #fffbeb;
+      --rose:        #e11d48;
+      --rose-light:  #fff1f2;
+      --green:       #059669;
+      --green-light: #ecfdf5;
+
+      --shadow-sm:   0 1px 3px rgba(15,21,32,.06), 0 1px 2px rgba(15,21,32,.04);
+      --shadow-md:   0 4px 16px rgba(15,21,32,.08);
+      --shadow-lg:   0 12px 40px rgba(15,21,32,.10);
+    }
+
+    [data-theme="dark"] {
+      --bg:          #080d1a;
+      --surface:     #111827;
+      --surface2:    #161f30;
+      --border:      #1e2d45;
+      --border2:     #263550;
+      --text:        #e8edf8;
+      --text2:       #94a3c4;
+      --muted:       #4a5a7a;
+      --muted2:      #3a4a68;
+
+      --teal:        #00c8d8;
+      --teal-mid:    #00a0b4;
+      --teal-light:  rgba(0,200,216,.1);
+      --teal-glow:   rgba(0,200,216,.2);
+      --blue:        #60a5fa;
+      --blue-light:  rgba(96,165,250,.1);
+      --amber:       #fbbf24;
+      --amber-light: rgba(251,191,36,.1);
+      --rose:        #fb7185;
+      --rose-light:  rgba(251,113,133,.1);
+      --green:       #34d399;
+      --green-light: rgba(52,211,153,.1);
+
+      --shadow-sm:   0 1px 3px rgba(0,0,0,.3);
+      --shadow-md:   0 4px 16px rgba(0,0,0,.4);
+      --shadow-lg:   0 12px 40px rgba(0,0,0,.5);
+    }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      transition: var(--transition-theme);
+    }
+
+    /* ── NAV ── */
+    nav {
+      height: 62px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition-theme);
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.15rem; font-weight: 700;
+      letter-spacing: -.4px; color: var(--text);
+      text-decoration: none;
+    }
+    .brand-chip {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--teal), var(--teal-mid));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      box-shadow: 0 2px 8px var(--teal-glow);
+    }
+    .brand-accent { color: var(--teal); }
+    .nav-sep {
+      width: 1px; height: 20px;
+      background: var(--border); margin: 0 4px;
+    }
+    .nav-crumb {
+      font-size: .88rem; color: var(--muted);
+      font-weight: 400;
+    }
+
+    .nav-center { display: flex; align-items: center; gap: 4px; }
+    .nav-tab {
+      padding: 6px 14px; border-radius: 8px;
+      font-size: .88rem; font-weight: 500; color: var(--muted);
+      text-decoration: none; transition: all .15s;
+      border: none; background: transparent;
+      font-family: 'Outfit', sans-serif; cursor: pointer;
+    }
+    .nav-tab:hover { color: var(--text); background: var(--surface2); }
+    .nav-tab.active { color: var(--teal); background: var(--teal-light); }
+
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+
+    .theme-toggle {
+      position: relative; width: 68px; height: 34px; cursor: pointer;
+    }
+    .theme-toggle input { display: none; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 34px;
+      transition: all .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    .theme-toggle:hover .toggle-track {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-glow);
+    }
+    .toggle-icons {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 8px; pointer-events: none; font-size: 12px; z-index: 1;
+    }
+    .toggle-thumb {
+      position: absolute; top: 4px; left: 4px;
+      width: 24px; height: 24px;
+      background: var(--surface); border-radius: 50%;
+      box-shadow: var(--shadow-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; z-index: 2;
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    [data-theme="dark"] .toggle-thumb { transform: translateX(34px); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 8px;
+      font-family: 'Outfit', sans-serif; font-size: .88rem; font-weight: 500;
+      cursor: pointer; border: none; transition: all .18s;
+      text-decoration: none;
+    }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text2);
+    }
+    .btn-outline:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+
+    /* ── MAIN ── */
+    main {
+      padding: 32px; max-width: 1360px; margin: 0 auto;
+    }
+
+    /* Page header */
+    .page-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px; margin-bottom: 28px;
+      animation: fadeUp .5s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity:0; transform: translateY(14px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+    .page-title-group h1 {
+      font-size: 1.65rem; font-weight: 700;
+      letter-spacing: -.5px; color: var(--text); margin-bottom: 4px;
+    }
+    .page-title-group p { font-size: .9rem; color: var(--muted); }
+    .breadcrumb {
+      display: flex; align-items: center; gap: 6px;
+      font-size: .78rem; color: var(--muted); margin-bottom: 6px;
+    }
+    .breadcrumb span { color: var(--teal); font-weight: 500; }
+
+    /* ── STAT CARDS ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px; margin-bottom: 28px;
+    }
+    @media(max-width:1000px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:560px){  .stats-grid{ grid-template-columns:1fr; } }
+
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition-theme), transform .2s, box-shadow .2s;
+      animation: fadeUp .5s ease both; position: relative; overflow: hidden;
+    }
+    .stat-card:nth-child(1){ animation-delay:.05s }
+    .stat-card:nth-child(2){ animation-delay:.10s }
+    .stat-card:nth-child(3){ animation-delay:.15s }
+    .stat-card:nth-child(4){ animation-delay:.20s }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .stat-card::after {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      border-radius: 16px 16px 0 0;
+    }
+    .c-blue::after  { background: linear-gradient(90deg, var(--blue), #818cf8); }
+    .c-green::after { background: linear-gradient(90deg, var(--green), #34d399); }
+    .c-rose::after  { background: linear-gradient(90deg, var(--rose), #f43f5e); }
+    .c-amber::after { background: linear-gradient(90deg, var(--amber), #f59e0b); }
+
+    .stat-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .stat-label {
+      font-size: .72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+    }
+    .stat-icon {
+      width: 34px; height: 34px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .si-blue  { background: var(--blue-light);  }
+    .si-green { background: var(--green-light); }
+    .si-rose  { background: var(--rose-light);  }
+    .si-amber { background: var(--amber-light); }
+    .stat-value {
+      font-family: 'Geist Mono', monospace;
+      font-size: 2rem; font-weight: 500; line-height: 1;
+      color: var(--text); margin-bottom: 4px;
+    }
+    .stat-sub { font-size: .78rem; color: var(--muted); }
+
+    /* ── TABLE CARD ── */
+    .table-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition-theme);
+      animation: fadeUp .5s ease .25s both;
+    }
+    .table-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      gap: 12px; flex-wrap: wrap;
+    }
+    .table-head-left { display: flex; align-items: center; gap: 10px; }
+    .table-title { font-size: .95rem; font-weight: 600; color: var(--text); }
+    .user-count {
+      font-family: 'Geist Mono', monospace; font-size: .72rem;
+      padding: 2px 9px; border-radius: 20px;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    }
+
+    /* Search */
+    .search-wrap {
+      position: relative;
+    }
+    .search-icon {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); pointer-events: none; font-size: 14px;
+    }
+    .search-input {
+      padding: 7px 12px 7px 32px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); font-family: 'Outfit', sans-serif; font-size: .88rem;
+      transition: all .15s; width: 200px;
+    }
+    .search-input:focus {
+      outline: none; border-color: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-glow); width: 240px;
+    }
+    .search-input::placeholder { color: var(--muted2); }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--surface2); }
+    th {
+      padding: 11px 18px; text-align: left;
+      font-size: .72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+      transition: var(--transition-theme);
+    }
+    td {
+      padding: 14px 18px; font-size: .9rem;
+      border-bottom: 1px solid var(--border); color: var(--text2);
+      transition: background .12s, var(--transition-theme);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    tr.hidden-row { display: none; }
+
+    .mono { font-family: 'Geist Mono', monospace; font-size: .8rem; }
+
+    /* Avatar */
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 2px solid var(--border); object-fit: cover; flex-shrink: 0;
+    }
+    .avatar-ph {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--surface2); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .user-name { font-weight: 500; color: var(--text); font-size: .9rem; }
+    .you-badge {
+      font-size: .68rem; font-weight: 600;
+      padding: 1px 7px; border-radius: 20px;
+      background: var(--teal-light); color: var(--teal);
+      border: 1px solid rgba(0,153,168,.2);
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Role badge */
+    .role-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: .76rem; font-weight: 600;
+      font-family: 'Geist Mono', monospace;
+    }
+    .rb-admin { background: var(--amber-light); color: var(--amber); border: 1px solid rgba(217,119,6,.2); }
+    .rb-user  { background: var(--surface2);    color: var(--muted);  border: 1px solid var(--border);  }
+
+    /* Status pill */
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 20px; font-size: .76rem; font-weight: 500;
+    }
+    .sp-active   { background: var(--green-light); color: var(--green); border: 1px solid rgba(5,150,105,.2); }
+    .sp-inactive { background: var(--rose-light);  color: var(--rose);  border: 1px solid rgba(225,29,72,.2); }
+    .sp-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+    /* Action buttons */
+    .actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .act {
+      padding: 5px 12px; border-radius: 7px;
+      font-size: .78rem; font-weight: 600; cursor: pointer;
+      border: none; font-family: 'Outfit', sans-serif; transition: all .15s;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .act-disable { background: var(--rose-light);  border: 1px solid rgba(225,29,72,.2);  color: var(--rose);  }
+    .act-disable:hover { background: rgba(225,29,72,.18); }
+    .act-enable  { background: var(--green-light); border: 1px solid rgba(5,150,105,.2);  color: var(--green); }
+    .act-enable:hover  { background: rgba(5,150,105,.2); }
+    .act-role    { background: var(--blue-light);  border: 1px solid rgba(37,99,235,.15); color: var(--blue);  }
+    .act-role:hover    { background: rgba(37,99,235,.15); }
+    .act-del     { background: var(--rose-light);  border: 1px solid rgba(225,29,72,.15); color: var(--rose);  }
+    .act-del:hover     { background: rgba(225,29,72,.18); }
+
+    /* Empty row */
+    .no-results {
+      text-align: center; padding: 48px 24px;
+    }
+    .no-results-icon { font-size: 2rem; margin-bottom: 8px; }
+    .no-results p { font-size: .9rem; color: var(--muted); }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 13px 18px;
+      font-size: .88rem; color: var(--text);
+      box-shadow: var(--shadow-lg);
+      display: flex; align-items: center; gap: 10px;
+      animation: toastIn .3s cubic-bezier(.16,1,.3,1);
+      max-width: 320px;
+    }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.error   { border-left: 3px solid var(--rose);  }
+    @keyframes toastIn { from{transform:translateX(30px);opacity:0} to{transform:none;opacity:1} }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 500;
+      align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 32px 36px;
+      max-width: 440px; width: 90%;
+      box-shadow: var(--shadow-lg);
+      animation: modalIn .3s cubic-bezier(.16,1,.3,1);
+      transition: var(--transition-theme);
+    }
+    @keyframes modalIn { from{transform:translateY(20px);opacity:0} to{transform:none;opacity:1} }
+    .modal-icon { font-size: 2.2rem; margin-bottom: 14px; }
+    .modal h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .modal p  { font-size: .9rem; color: var(--text2); line-height: 1.55; margin-bottom: 26px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .modal-btn {
+      padding: 10px 22px; border-radius: 9px; font-size: .9rem;
+      cursor: pointer; border: none; font-family: 'Outfit', sans-serif;
+      font-weight: 600; transition: all .15s;
+    }
+    .mb-cancel  { background: var(--surface2); border: 1px solid var(--border); color: var(--text2); }
+    .mb-cancel:hover  { color: var(--text); border-color: var(--border2); }
+    .mb-confirm { background: var(--rose-light); border: 1px solid rgba(225,29,72,.3); color: var(--rose); }
+    .mb-confirm:hover { background: rgba(225,29,72,.2); }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="#">
+    <div class="brand-chip">⚡</div>
+    GPIO<span class="brand-accent">Monitor</span>
+    <div class="nav-sep"></div>
+    <span class="nav-crumb">Admin</span>
+  </a>
+
+  <div class="nav-center">
+    <a href="{{ url_for('dashboard') }}" class="nav-tab">Dashboard</a>
+    <span class="nav-tab active">Admin Panel</span>
+  </div>
+
+  <div class="nav-right">
+    <label class="theme-toggle" title="Toggle light / dark">
+      <input type="checkbox" id="themeCheckbox" onchange="handleThemeToggle(this)">
+      <div class="toggle-track">
+        <div class="toggle-icons"><span>☀️</span><span>🌙</span></div>
+      </div>
+      <div class="toggle-thumb" id="themeThumb">☀️</div>
+    </label>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline">Sign out</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main>
+
+  <!-- Page Header -->
+  <div class="page-head">
+    <div class="page-title-group">
+      <div class="breadcrumb">Home <span>/</span> <span>Admin Panel</span></div>
+      <h1>🛡️ Admin Panel</h1>
+      <p>Manage user accounts, roles, and access permissions</p>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  {% set total        = users|length %}
+  {% set active_count = users|selectattr('is_active')|list|length %}
+  {% set admin_count  = users|selectattr('role','equalto','admin')|list|length %}
+  {% set disabled     = total - active_count %}
+
+  <div class="stats-grid">
+    <div class="stat-card c-blue">
+      <div class="stat-top">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-icon si-blue">👥</div>
+      </div>
+      <div class="stat-value">{{ total }}</div>
+      <div class="stat-sub">registered accounts</div>
+    </div>
+    <div class="stat-card c-green">
+      <div class="stat-top">
+        <div class="stat-label">Active</div>
+        <div class="stat-icon si-green">✅</div>
+      </div>
+      <div class="stat-value">{{ active_count }}</div>
+      <div class="stat-sub">can sign in</div>
+    </div>
+    <div class="stat-card c-rose">
+      <div class="stat-top">
+        <div class="stat-label">Disabled</div>
+        <div class="stat-icon si-rose">🚫</div>
+      </div>
+      <div class="stat-value">{{ disabled }}</div>
+      <div class="stat-sub">access revoked</div>
+    </div>
+    <div class="stat-card c-amber">
+      <div class="stat-top">
+        <div class="stat-label">Admins</div>
+        <div class="stat-icon si-amber">🛡️</div>
+      </div>
+      <div class="stat-value">{{ admin_count }}</div>
+      <div class="stat-sub">with full access</div>
+    </div>
+  </div>
+
+  <!-- User table -->
+  <div class="table-card">
+    <div class="table-head">
+      <div class="table-head-left">
+        <div class="table-title">User Accounts</div>
+        <span class="user-count" id="userCount">{{ total }} users</span>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          class="search-input"
+          id="searchInput"
+          placeholder="Search users…"
+          oninput="filterTable(this.value)"
+        >
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Joined</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="userTable">
+          {% for u in users %}
+          <tr id="row-{{ u.id }}" data-name="{{ u.name|lower }}" data-email="{{ u.email|lower }}">
+            <td>
+              <div class="user-cell">
+                {% if u.picture %}
+                  <img class="avatar" src="{{ u.picture }}" alt="{{ u.name }}">
+                {% else %}
+                  <div class="avatar-ph">👤</div>
+                {% endif %}
+                <div>
+                  <div class="user-name">
+                    {{ u.name }}
+                    {% if u.id == current_user.id %}
+                      <span class="you-badge">you</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="mono">{{ u.email }}</td>
+            <td>
+              <span class="role-badge {{ 'rb-admin' if u.role == 'admin' else 'rb-user' }}" id="role-{{ u.id }}">
+                {{ '★' if u.role == 'admin' else '◎' }} {{ u.role }}
+              </span>
+            </td>
+            <td>
+              <span class="status-pill {{ 'sp-active' if u.is_active else 'sp-inactive' }}" id="status-{{ u.id }}">
+                <span class="sp-dot"></span>
+                {{ 'Active' if u.is_active else 'Disabled' }}
+              </span>
+            </td>
+            <td class="mono" style="color:var(--muted);font-size:.76rem">
+              {{ u.created_at.strftime('%d %b %Y') if u.created_at else '—' }}
+            </td>
+            <td>
+              <div class="actions">
+                {% if u.id != current_user.id %}
+                  <button
+                    class="act {{ 'act-disable' if u.is_active else 'act-enable' }}"
+                    id="toggle-{{ u.id }}"
+                    onclick="toggleUser({{ u.id }}, {{ 'true' if u.is_active else 'false' }})">
+                    {{ '🚫 Disable' if u.is_active else '✅ Enable' }}
+                  </button>
+                  <button
+                    class="act act-role"
+                    id="role-btn-{{ u.id }}"
+                    onclick="changeRole({{ u.id }}, '{{ u.role }}')">
+                    {{ '👤 Make User' if u.role == 'admin' else '🛡️ Make Admin' }}
+                  </button>
+                  <button
+                    class="act act-del"
+                    onclick="confirmDelete({{ u.id }}, '{{ u.name }}')">
+                    🗑️ Delete
+                  </button>
+                {% else %}
+                  <span style="font-size:.78rem;color:var(--muted2)">—</span>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div id="noResults" style="display:none;">
+        <div class="no-results">
+          <div class="no-results-icon">🔍</div>
+          <p>No users match your search</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-icon">🗑️</div>
+    <h3>Delete Account?</h3>
+    <p id="modalMsg">This will permanently remove the user and all their data. This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="modal-btn mb-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn mb-confirm" id="confirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Theme ────────────────────────────────────────────────────────────────────
+  const html      = document.documentElement;
+  const THEME_KEY = 'gpio-theme';
+
+  function applyTheme(theme) {
+    html.setAttribute('data-theme', theme);
+    const isDark = theme === 'dark';
+    document.getElementById('themeCheckbox').checked  = isDark;
+    document.getElementById('themeThumb').textContent = isDark ? '🌙' : '☀️';
+    localStorage.setItem(THEME_KEY, theme);
+  }
+
+  function handleThemeToggle(cb) { applyTheme(cb.checked ? 'dark' : 'light'); }
+  applyTheme(localStorage.getItem(THEME_KEY) || 'light');
+
+  // ── Search filter ─────────────────────────────────────────────────────────────
+  function filterTable(q) {
+    const rows   = document.querySelectorAll('#userTable tr');
+    const search = q.toLowerCase().trim();
+    let visible  = 0;
+
+    rows.forEach(row => {
+      const name  = row.dataset.name  || '';
+      const email = row.dataset.email || '';
+      const match = !search || name.includes(search) || email.includes(search);
+      row.classList.toggle('hidden-row', !match);
+      if (match) visible++;
+    });
+
+    document.getElementById('noResults').style.display = visible ? 'none' : 'block';
+    document.getElementById('userCount').textContent   = visible + ' user' + (visible !== 1 ? 's' : '');
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────────
+  function toast(msg, type = 'success') {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // ── Toggle active ─────────────────────────────────────────────────────────────
+  async function toggleUser(uid, currentlyActive) {
+    try {
+      const res = await fetch(`/api/admin/users/${uid}/toggle`, { method: 'POST' });
+      if (!res.ok) throw new Error();
+      const nowActive = !currentlyActive;
+
+      const pill = document.getElementById(`status-${uid}`);
+      pill.className = `status-pill ${nowActive ? 'sp-active' : 'sp-inactive'}`;
+      pill.innerHTML = `<span class="sp-dot"></span> ${nowActive ? 'Active' : 'Disabled'}`;
+
+      const btn = document.getElementById(`toggle-${uid}`);
+      btn.className   = `act ${nowActive ? 'act-disable' : 'act-enable'}`;
+      btn.textContent = nowActive ? '🚫 Disable' : '✅ Enable';
+      btn.setAttribute('onclick', `toggleUser(${uid}, ${nowActive})`);
+
+      toast(nowActive ? '✅ User enabled' : '🚫 User disabled');
+    } catch {
+      toast('Failed to update user', 'error');
+    }
+  }
+
+  // ── Change role ───────────────────────────────────────────────────────────────
+  async function changeRole(uid, currentRole) {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    try {
+      const res  = await fetch(`/api/admin/users/${uid}/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast(json.error || 'Error', 'error'); return; }
+
+      const badge = document.getElementById(`role-${uid}`);
+      badge.className   = `role-badge ${newRole === 'admin' ? 'rb-admin' : 'rb-user'}`;
+      badge.textContent = `${newRole === 'admin' ? '★' : '◎'} ${newRole}`;
+
+      const btn = document.getElementById(`role-btn-${uid}`);
+      btn.textContent = newRole === 'admin' ? '👤 Make User' : '🛡️ Make Admin';
+      btn.setAttribute('onclick', `changeRole(${uid}, '${newRole}')`);
+
+      toast(`Role updated to ${newRole}`);
+    } catch {
+      toast('Failed to change role', 'error');
+    }
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────────
+  let pendingDeleteId = null;
+
+  function confirmDelete(uid, name) {
+    pendingDeleteId = uid;
+    document.getElementById('modalMsg').textContent =
+      `Permanently delete "${name}"? This cannot be undone.`;
+    document.getElementById('deleteModal').classList.add('open');
+    document.getElementById('confirmBtn').onclick = doDelete;
+  }
+
+  function closeModal() {
+    document.getElementById('deleteModal').classList.remove('open');
+    pendingDeleteId = null;
+  }
+
+  async function doDelete() {
+    if (!pendingDeleteId) return;
+    const uid = pendingDeleteId;
+    closeModal();
+    try {
+      const res = await fetch(`/api/admin/users/${uid}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      const row = document.getElementById(`row-${uid}`);
+      if (row) {
+        row.style.transition = 'opacity .3s, transform .3s';
+        row.style.opacity    = '0';
+        row.style.transform  = 'translateX(20px)';
+        setTimeout(() => row.remove(), 300);
+      }
+      toast('🗑️ User deleted');
+    } catch {
+      toast('Failed to delete user', 'error');
+    }
+  }
+
+  document.getElementById('deleteModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+</script>
+</body>
+</html>
