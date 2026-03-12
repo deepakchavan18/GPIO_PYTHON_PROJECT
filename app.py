@@ -29,9 +29,9 @@ def load_user(user_id):
     return User.get_by_id(user_id)
 
 
-@app.before_first_request
+@app.before_serving
 def ensure_tables_exist():
-    """Create database tables on first request (idempotent)."""
+    """Create database tables before the app starts serving (idempotent)."""
     try:
         init_db()
     except Exception as e:
