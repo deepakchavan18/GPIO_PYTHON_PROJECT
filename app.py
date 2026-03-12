@@ -28,6 +28,18 @@ login_manager.login_message_category = "info"
 def load_user(user_id):
     return User.get_by_id(user_id)
 
+
+@app.before_first_request
+def ensure_tables_exist():
+    """Create database tables on first request (idempotent)."""
+    try:
+        init_db()
+    except Exception as e:
+        # Log to stderr; app will still try to serve the request.
+        import sys, traceback
+        print(f"[DB] init_db failed: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+
 # ── Google OAuth ──────────────────────────────────────────────────────────────
 oauth = OAuth(app)
 google = oauth.register(

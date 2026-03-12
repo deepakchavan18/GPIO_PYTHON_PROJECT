@@ -6,10 +6,10 @@ load_dotenv()
 class Config:
     # Database
     DB_HOST     = os.getenv("DB_HOST", "localhost")
-    DB_USER     = os.getenv("DB_USER", "root")
+    DB_USER     = os.getenv("DB_USER", "postgres")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "")
     DB_NAME     = os.getenv("DB_NAME", "sensor_db")
-    DB_PORT     = int(os.getenv("DB_PORT", "3306"))
+    DB_PORT     = int(os.getenv("DB_PORT", "5432"))
 
     # Flask
     SECRET_KEY  = os.getenv("SECRET_KEY", "change-this-to-a-long-random-string")
