@@ -350,7 +350,7 @@
       cursor: pointer;
       transition: all .18s;
       box-shadow: var(--shadow-sm);
-      z-index: 1000;
+      z-index: -10;
     }
     .drop-btn:hover { border-color: var(--teal); color: var(--teal); box-shadow: 0 0 0 3px var(--teal-glow); }
     .drop-menu {
@@ -362,10 +362,11 @@
       min-width: 190px;
       z-index: 200;
       box-shadow: var(--shadow-lg);
+       z-index: -10;
       overflow: hidden;
     }
-    .drop-menu.open { display: block; animation: menuIn .15s ease; z-index: -100; }
-    @keyframes menuIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+    .drop-menu.open { display: block; animation: menuIn .15s ease; z-index: -10; }
+    @keyframes menuIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0); z-index: -10;} }
     .drop-menu-label {
       padding: 9px 14px 5px;
       font-size: .72rem; font-weight: 600;

@@ -97,14 +97,14 @@
       font-size: 1.15rem; font-weight: 700;
       letter-spacing: -.4px; color: var(--text);
       text-decoration: none;
+      font-size: 1.5rem;
     }
     .brand-chip {
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--teal), var(--teal-mid));
+      width: 3.2rem; height: 3.2rem;
+      /* background: linear-gradient(135deg, var(--teal), #ffffff); */
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
       font-size: 17px;
-      box-shadow: 0 2px 8px var(--teal-glow);
     }
     .brand-accent { color: var(--teal); }
     .nav-sep {
@@ -435,8 +435,14 @@
 <!-- NAV -->
 <nav>
   <a class="nav-brand" href="#">
-    <div class="brand-chip">⚡</div>
-    GPIO<span class="brand-accent">Monitor</span>
+    <img
+      class="brand-chip"
+      src="https://i.ibb.co/B2LqnT5P/output-onlinegiftools.gif"
+      alt="Logo"
+      loading="lazy"
+      decoding="async"
+    />
+    GPIO<span class="brand-accent">Monitoring System</span>
     <div class="nav-sep"></div>
     <span class="nav-crumb">Admin</span>
   </a>
