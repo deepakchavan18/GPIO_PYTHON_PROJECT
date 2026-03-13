@@ -116,14 +116,14 @@
       font-size: 1.15rem; font-weight: 700;
       letter-spacing: -.4px; color: var(--text);
       text-decoration: none;
+      font-size: 1.5rem;
     }
     .brand-chip {
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--teal), #0077b6);
+      width: 3.2rem; height: 3.2rem;
+      /* background: linear-gradient(135deg, var(--teal), #ffffff); */
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
       font-size: 17px;
-      box-shadow: 0 2px 8px var(--teal-glow);
     }
     .brand-accent { color: var(--teal); }
 
@@ -360,11 +360,11 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       min-width: 190px;
-      z-index: 1400;
+      z-index: 200;
       box-shadow: var(--shadow-lg);
       overflow: hidden;
     }
-    .drop-menu.open { display: block; animation: menuIn .15s ease; }
+    .drop-menu.open { display: block; animation: menuIn .15s ease; z-index: -100; }
     @keyframes menuIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
     .drop-menu-label {
       padding: 9px 14px 5px;
@@ -658,8 +658,14 @@
 <!-- ══ NAV ══ -->
 <nav>
   <a class="nav-brand" href="#">
-    <div class="brand-chip">⚡</div>
-    GPIO<span class="brand-accent">Monitor</span>
+    <img
+      class="brand-chip"
+      src="https://i.ibb.co/B2LqnT5P/output-onlinegiftools.gif"
+      alt="Logo"
+      loading="lazy"
+      decoding="async"
+    />
+    GPIO<span class="brand-accent">Monitoring System</span>
   </a>
 
   <div class="nav-center">
