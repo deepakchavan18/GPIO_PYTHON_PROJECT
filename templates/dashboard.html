@@ -339,30 +339,33 @@
     /* Download dropdown */
     .drop-wrap { position: relative; }
     .drop-btn {
-      display: inline-flex; align-items: center; gap: 7px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
       padding: 10px 18px;
       border-radius: 10px;
       background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text2);
       font-family: 'Outfit', sans-serif;
-      font-size: .9rem; font-weight: 500;
+      font-size: .9rem;
+      font-weight: 500;
       cursor: pointer;
       transition: all .18s;
       box-shadow: var(--shadow-sm);
-      z-index: -10;
     }
     .drop-btn:hover { border-color: var(--teal); color: var(--teal); box-shadow: 0 0 0 3px var(--teal-glow); }
     .drop-menu {
       display: none;
-      position: absolute; top: calc(100% + 8px); right: 0;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
       min-width: 190px;
-      z-index: 200;
+      z-index: 999;   /* IMPORTANT */
       box-shadow: var(--shadow-lg);
-       z-index: -10;
       overflow: hidden;
     }
     .drop-menu.open { display: block; animation: menuIn .15s ease; z-index: -10; }
@@ -411,6 +414,7 @@
       box-shadow: var(--shadow-sm);
       transition: var(--transition-theme), transform .2s, box-shadow .2s;
       animation: fadeUp .5s ease both;
+      z-index: 1;
     }
     .stat-card:nth-child(1){ animation-delay:.05s }
     .stat-card:nth-child(2){ animation-delay:.10s }
